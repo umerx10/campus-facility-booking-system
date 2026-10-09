@@ -44,9 +44,14 @@ Feature changes will be developed in separate branches
 and reviewed through pull requests before integration.
 
 ## Development Setup
-The application is currently in the proposal/design phase.
-Installation and execution instructions will be added and
-verified when the initial implementation is available.
+
+1. Clone: `git clone https://github.com/umerx10/campus-facility-booking-system.git`
+2. Create a virtual environment: `python -m venv .venv`
+3. Activate it: `source .venv/bin/activate` (Windows: `.venv\Scripts\activate`)
+4. Install dependencies: `pip install -r requirements.txt`
+5. Run tests: `pytest` (no tests exist at Milestone 1)
+
+Application run commands will be added with the first implementation in Milestone 2.
 
 ## Current Status
 Milestone 1 - Proposal and architecture planning.
