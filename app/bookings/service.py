@@ -1,4 +1,4 @@
-"""Business logic for booking requests (FR-04, FR-05, FR-06, FR-08, FR-09).
+"""Business logic for bookings: request, cancel, approve, reject (FR-04 to FR-09).
 
 BookingService receives everything it depends on through its constructor, typed with Protocols
 (Dependency Inversion): its own store, the facility lookup, the role policies (Strategy), the
@@ -8,6 +8,8 @@ Rules agreed in the M2 team plan:
 - A request for a restricted facility is stored as PENDING and does not reserve the slot.
 - Every status change writes a history row in the same transaction as the change.
 - Events are published only after the commit; creating a PENDING booking publishes nothing.
+- Invalid state transitions (cancel a closed booking, decide a non-pending one) raise
+  BookingConflict. Another user's booking gives the same NotFound as a missing one.
 """
 
 from collections.abc import Callable
@@ -17,8 +19,13 @@ from typing import Protocol
 from app.bookings.models import Booking, BookingHistory
 from app.core.deps import CurrentUser
 from app.core.enums import BookingStatus, Role
-from app.core.events import BookingConfirmed
-from app.core.exceptions import BookingConflict, FacilityUnavailable, InvalidBookingTime
+from app.core.events import BookingCancelled, BookingConfirmed, BookingEvent, BookingRejected
+from app.core.exceptions import (
+    BookingConflict,
+    FacilityUnavailable,
+    InvalidBookingTime,
+    NotFound,
+)
 from app.core.interfaces import BookingPolicy, EventPublisher, FacilityInfo, FacilityLookup
 
 
@@ -69,8 +76,11 @@ class BookingStore(Protocol):
         """Commit the current transaction."""
 
 
-class BookingService:  # pylint: disable=too-few-public-methods  # step 4 adds cancel and approval methods
-    """Creates bookings after checking the interval, the facility, the role policy and conflicts."""
+CLOSED_STATUSES = frozenset({BookingStatus.CANCELLED, BookingStatus.REJECTED})
+
+
+class BookingService:
+    """Creates, cancels and decides bookings; every change is one transaction with its history."""
 
     def __init__(  # pylint: disable=too-many-arguments  # five injected collaborators, by design (DIP)
         self,
@@ -103,15 +113,71 @@ class BookingService:  # pylint: disable=too-few-public-methods  # step 4 adds c
             return self._create(user, facility_id, start, end, BookingStatus.PENDING)
         self._check_no_conflict(facility_id, start, end)
         booking = self._create(user, facility_id, start, end, BookingStatus.CONFIRMED)
+        self._publish(BookingConfirmed, booking)
+        return booking
+
+    def cancel(self, booking_id: int, actor: CurrentUser) -> Booking:
+        """Cancel a PENDING or CONFIRMED booking of the actor (an admin may cancel any)."""
+        booking = self._store.get(booking_id)
+        if booking is None or (actor.role != Role.ADMIN and booking.user_id != actor.id):
+            raise NotFound(f"Booking {booking_id} not found")
+        if booking.status in CLOSED_STATUSES:
+            raise BookingConflict(f"Booking {booking_id} is already {booking.status.value}")
+        return self._change_status(booking, BookingStatus.CANCELLED, actor, BookingCancelled)
+
+    def confirm_pending(self, booking_id: int, actor: CurrentUser) -> Booking:
+        """Approve a PENDING booking after rechecking availability in the same transaction."""
+        booking = self._get_pending(booking_id)
+        facility = self._facilities.get_facility(booking.facility_id)
+        self._check_available(facility, booking.start_at, booking.end_at)
+        self._check_no_conflict(
+            booking.facility_id, booking.start_at, booking.end_at, exclude_id=booking.id
+        )
+        return self._change_status(booking, BookingStatus.CONFIRMED, actor, BookingConfirmed)
+
+    def reject_pending(self, booking_id: int, actor: CurrentUser) -> Booking:
+        """Reject a PENDING booking."""
+        booking = self._get_pending(booking_id)
+        return self._change_status(booking, BookingStatus.REJECTED, actor, BookingRejected)
+
+    def list_pending(self) -> list[Booking]:
+        """Return the bookings waiting for an administrator's decision."""
+        return self._store.list_pending()
+
+    def _get_pending(self, booking_id: int) -> Booking:
+        """Return the booking if it is PENDING; NotFound if missing, BookingConflict otherwise."""
+        booking = self._store.get(booking_id)
+        if booking is None:
+            raise NotFound(f"Booking {booking_id} not found")
+        if booking.status != BookingStatus.PENDING:
+            raise BookingConflict(f"Booking {booking_id} is {booking.status.value}, not PENDING")
+        return booking
+
+    def _change_status(
+        self,
+        booking: Booking,
+        new_status: BookingStatus,
+        actor: CurrentUser,
+        event_type: type[BookingEvent],
+    ) -> Booking:
+        """Write the new status and its history row, commit, then publish the event."""
+        old_status = booking.status
+        booking.status = new_status
+        self._store.add_history(booking.id, old_status, new_status, self._now(), actor.id)
+        self._store.commit()
+        self._publish(event_type, booking)
+        return booking
+
+    def _publish(self, event_type: type[BookingEvent], booking: Booking) -> None:
+        """Publish an event about the booking; called only after the commit."""
         self._publisher.publish(
-            BookingConfirmed(
+            event_type(
                 booking_id=booking.id,
                 user_id=booking.user_id,
                 facility_id=booking.facility_id,
                 occurred_at=self._now(),
             )
         )
-        return booking
 
     def _check_interval(self, start: datetime, end: datetime) -> None:
         """Raise InvalidBookingTime unless start < end and start is not in the past."""
