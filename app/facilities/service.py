@@ -4,10 +4,11 @@ The service depends on the FacilityStore Protocol, not on SQLAlchemy, so it can 
 with a fake store (Dependency Inversion). Role checks are done by the router (require_role).
 """
 
+from datetime import date, datetime, time, timedelta
 from typing import Protocol
 
 from app.core.exceptions import NotFound
-from app.facilities.models import Facility
+from app.facilities.models import Facility, FacilityBlock, FacilityOperatingHours
 
 
 class FacilityStore(Protocol):
@@ -33,6 +34,25 @@ class FacilityStore(Protocol):
 
     def deactivate(self, facility: Facility) -> None:
         """Mark the facility inactive."""
+
+    def replace_hours(self, facility_id: int, week: list[tuple[int, time, time]]) -> None:
+        """Replace the facility's opening windows."""
+
+    def list_hours(self, facility_id: int) -> list[FacilityOperatingHours]:
+        """Return the opening windows ordered by weekday."""
+
+    def hours_for(self, facility_id: int, weekday: int) -> FacilityOperatingHours | None:
+        """Return the opening window for that weekday, or None."""
+
+    def add_block(
+        self, facility_id: int, start_at: datetime, end_at: datetime, reason: str
+    ) -> FacilityBlock:
+        """Stage a maintenance block and return it."""
+
+    def blocks_overlapping(
+        self, facility_id: int, start: datetime, end: datetime
+    ) -> list[FacilityBlock]:
+        """Return the blocks that overlap [start, end)."""
 
     def commit(self) -> None:
         """Commit the current transaction."""
@@ -84,3 +104,35 @@ class FacilityService:
             self._facilities.deactivate(facility)
             self._facilities.commit()
         return facility
+
+    def set_hours(
+        self, facility_id: int, week: list[tuple[int, time, time]]
+    ) -> list[FacilityOperatingHours]:
+        """Replace the weekly opening hours and return them; raise NotFound if unknown.
+
+        A weekday that is not in `week` is closed.
+        """
+        self.get(facility_id)
+        self._facilities.replace_hours(facility_id, week)
+        self._facilities.commit()
+        return self._facilities.list_hours(facility_id)
+
+    def add_block(
+        self, facility_id: int, start_at: datetime, end_at: datetime, reason: str
+    ) -> FacilityBlock:
+        """Add a maintenance block [start_at, end_at) and return it; raise NotFound if unknown."""
+        self.get(facility_id)
+        block = self._facilities.add_block(facility_id, start_at, end_at, reason)
+        self._facilities.commit()
+        return block
+
+    def schedule(
+        self, facility_id: int, day: date
+    ) -> tuple[FacilityOperatingHours | None, list[FacilityBlock]]:
+        """Return the opening window (None if closed) and the blocks that touch `day`."""
+        self.get(facility_id)
+        day_start = datetime.combine(day, time.min)
+        day_end = day_start + timedelta(days=1)
+        hours = self._facilities.hours_for(facility_id, day.weekday())
+        blocks = self._facilities.blocks_overlapping(facility_id, day_start, day_end)
+        return hours, blocks

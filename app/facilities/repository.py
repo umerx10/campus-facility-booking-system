@@ -1,9 +1,11 @@
 """Database access for facilities. All facility SQL lives here."""
 
-from sqlalchemy import select
+from datetime import datetime, time
+
+from sqlalchemy import delete, exists, select
 from sqlalchemy.orm import Session
 
-from app.facilities.models import Facility
+from app.facilities.models import Facility, FacilityBlock, FacilityOperatingHours
 
 
 class FacilityRepository:
@@ -52,6 +54,73 @@ class FacilityRepository:
         """Mark the facility inactive. The row is kept so old bookings still refer to it."""
         facility.active = False
         self._session.flush()
+
+    def replace_hours(self, facility_id: int, week: list[tuple[int, time, time]]) -> None:
+        """Delete the facility's opening windows and store `week` (weekday, opens_at, closes_at)."""
+        self._session.execute(
+            delete(FacilityOperatingHours).where(FacilityOperatingHours.facility_id == facility_id)
+        )
+        self._session.add_all(
+            FacilityOperatingHours(
+                facility_id=facility_id, weekday=weekday, opens_at=opens_at, closes_at=closes_at
+            )
+            for weekday, opens_at, closes_at in week
+        )
+        self._session.flush()
+
+    def list_hours(self, facility_id: int) -> list[FacilityOperatingHours]:
+        """Return the facility's opening windows ordered by weekday."""
+        query = (
+            select(FacilityOperatingHours)
+            .where(FacilityOperatingHours.facility_id == facility_id)
+            .order_by(FacilityOperatingHours.weekday)
+        )
+        return list(self._session.scalars(query))
+
+    def hours_for(self, facility_id: int, weekday: int) -> FacilityOperatingHours | None:
+        """Return the opening window for that weekday, or None if the facility is closed."""
+        query = select(FacilityOperatingHours).where(
+            FacilityOperatingHours.facility_id == facility_id,
+            FacilityOperatingHours.weekday == weekday,
+        )
+        return self._session.scalar(query)
+
+    def add_block(
+        self, facility_id: int, start_at: datetime, end_at: datetime, reason: str
+    ) -> FacilityBlock:
+        """Stage a maintenance block and return it with its id."""
+        block = FacilityBlock(
+            facility_id=facility_id, start_at=start_at, end_at=end_at, reason=reason
+        )
+        self._session.add(block)
+        self._session.flush()
+        return block
+
+    def blocks_overlapping(
+        self, facility_id: int, start: datetime, end: datetime
+    ) -> list[FacilityBlock]:
+        """Return the blocks that overlap [start, end), ordered by start time (half-open rule)."""
+        query = (
+            select(FacilityBlock)
+            .where(
+                FacilityBlock.facility_id == facility_id,
+                FacilityBlock.start_at < end,
+                start < FacilityBlock.end_at,
+            )
+            .order_by(FacilityBlock.start_at)
+        )
+        return list(self._session.scalars(query))
+
+    def has_block_overlapping(self, facility_id: int, start: datetime, end: datetime) -> bool:
+        """True if any block overlaps [start, end): block.start < end and start < block.end."""
+        query = select(
+            exists().where(
+                FacilityBlock.facility_id == facility_id,
+                FacilityBlock.start_at < end,
+                start < FacilityBlock.end_at,
+            )
+        )
+        return bool(self._session.scalar(query))
 
     def commit(self) -> None:
         """Commit the current transaction."""
