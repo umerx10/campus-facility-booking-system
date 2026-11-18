@@ -18,3 +18,7 @@ SQLAlchemy==2.1.4
 starlette==1.7.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
+httpx==0.28.1
+pylint==4.1.4
+radon==6.0.1
+PyJWT==2.15.1

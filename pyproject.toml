@@ -1,0 +1,8 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.pylint.design]
+# SQLAlchemy models are declarative data records with no methods of their own, so the
+# "too few public methods" check (R0903) does not apply to classes built on DeclarativeBase.
+exclude-too-few-public-methods = ['.*DeclarativeBase', 'app\.core\.db\.Base']
