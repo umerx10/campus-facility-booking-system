@@ -22,3 +22,4 @@ httpx==0.28.1
 pylint==4.1.4
 radon==6.0.1
 PyJWT==2.15.1
+uvicorn==0.54.0
