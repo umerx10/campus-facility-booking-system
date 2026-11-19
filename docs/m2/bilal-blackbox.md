@@ -5,10 +5,10 @@ the operating-hours input of FR-03 that my module implements. For each input: th
 classes (V = valid, I = invalid), the boundary values, then the derived test cases. Test case IDs
 are `TC-<FR>-<n>`; Umer uses the same IDs in RTM v2.
 
-Implementing tests are named as `file::test[parameter id]`. The status of each case was taken on
-18 Nov 2026 from `develop` at `1ee09df` (after PR #10). A case marked **planned (M2, owner)** is
-assigned to a module whose PR was not merged at that time; a case marked **planned for M3** has no
-test in M2.
+Implementing tests are named as `file::test[parameter id]`. First written on 18 Nov 2026 against
+`develop` at `1ee09df` (after PR #10); updated on 19 Nov 2026 with the tests of the approvals
+policies PR (#12) and the bookings PR (`feature/bookings-core`). A case marked **planned for M3**
+has no test in M2.
 
 Assumptions (M1 and team plan): booking intervals are half-open `[start, end)`; student bookings at
 most 120 minutes, faculty at most 240, admin no cap; datetimes are naive UTC.
@@ -85,10 +85,10 @@ Clock fixed at "now" by the injected clock.
 
 | TC | Input | Expected | Req | Implementing test |
 |---|---|---|---|---|
-| TC-04-01 | end one hour before start | `InvalidBookingTime` / 422 | FR-04 | planned (M2, Hussnain: `tests/bookings/test_booking_service.py`) |
-| TC-04-02 | end == start | `InvalidBookingTime` / 422 | FR-04 | planned (M2, Hussnain: `tests/bookings/test_booking_service.py`) |
+| TC-04-01 | end one hour before start | `InvalidBookingTime` / 422 | FR-04 | `tests/bookings/test_booking_service.py::test_end_not_after_start_is_invalid[end before start]` |
+| TC-04-02 | end == start | `InvalidBookingTime` / 422 | FR-04 | `tests/bookings/test_booking_service.py::test_end_not_after_start_is_invalid[end == start]` |
 | TC-04-03 | 1-minute booking, free slot, inside hours | accepted (CONFIRMED) | FR-04 | planned for M3 |
-| TC-04-04 | start in the past | `InvalidBookingTime` / 422 | FR-04 | planned (M2, Hussnain: `tests/bookings/test_booking_service.py`) |
+| TC-04-04 | start in the past | `InvalidBookingTime` / 422 | FR-04 | `tests/bookings/test_booking_service.py::test_start_in_the_past_is_invalid` |
 
 ## 5. FR-05 Overlap with bookings and maintenance blocks (half-open)
 
@@ -106,9 +106,9 @@ Existing interval (a CONFIRMED booking or a maintenance block) `[10:00, 12:00)`.
 | TC-05-03 | block, request 11:59-12:30 | overlap | FR-05 | `tests/facilities/test_lookup.py::test_overlaps_block[starts one minute before the block ends]` |
 | TC-05-04 | block, request 09:00-13:00 | overlap | FR-05 | `tests/facilities/test_lookup.py::test_overlaps_block[contains the block]` |
 | TC-05-05 | block on another facility | no overlap | FR-05 | `tests/facilities/test_lookup.py::test_block_on_another_facility_does_not_overlap` |
-| TC-05-06 | CONFIRMED booking, request overlapping it | `BookingConflict` / 409 | FR-05 | planned (M2, Hussnain: `tests/bookings/test_booking_service.py`) |
-| TC-05-07 | CONFIRMED booking, request back to back | CONFIRMED | FR-05 | planned (M2, Hussnain: `tests/bookings/test_booking_service.py`) |
-| TC-05-08 | request overlapping a block | `FacilityUnavailable` / 409 | FR-05 | planned (M2, Hussnain: `tests/bookings/test_booking_service.py`) |
+| TC-05-06 | CONFIRMED booking, request overlapping it | `BookingConflict` / 409 | FR-05 | `tests/bookings/test_booking_service.py::test_overlapping_a_confirmed_booking_conflicts_and_publishes_nothing` |
+| TC-05-07 | CONFIRMED booking, request back to back | CONFIRMED | FR-05 | `tests/bookings/test_booking_service.py::test_back_to_back_with_a_confirmed_booking_is_allowed` |
+| TC-05-08 | request overlapping a block | `FacilityUnavailable` / 409 | FR-05 | `tests/bookings/test_booking_service.py::test_overlapping_a_maintenance_block_is_unavailable` |
 
 ## 6. FR-06 Duration by role
 
@@ -120,13 +120,13 @@ Existing interval (a CONFIRMED booking or a maintenance block) `[10:00, 12:00)`.
 
 | TC | Input | Expected | Req | Implementing test |
 |---|---|---|---|---|
-| TC-06-01 | student 119 min | allowed | FR-06 | planned (M2, Umer: `tests/approvals/test_policies.py`) |
-| TC-06-02 | student 120 min | allowed | FR-06 | planned (M2, Umer: `tests/approvals/test_policies.py`) |
-| TC-06-03 | student 121 min | `PolicyViolation` / 422 | FR-06 | planned (M2, Umer: `tests/approvals/test_policies.py`) |
-| TC-06-04 | faculty 239 min | allowed | FR-06 | planned (M2, Umer: `tests/approvals/test_policies.py`) |
-| TC-06-05 | faculty 240 min | allowed | FR-06 | planned (M2, Umer: `tests/approvals/test_policies.py`) |
-| TC-06-06 | faculty 241 min | `PolicyViolation` / 422 | FR-06 | planned (M2, Umer: `tests/approvals/test_policies.py`) |
-| TC-06-07 | admin 600 min | allowed | FR-06 | planned (M2, Umer: `tests/approvals/test_policies.py`) |
+| TC-06-01 | student 119 min | allowed | FR-06 | `tests/approvals/test_policies.py::test_student_accepts_allowed_duration[119]` |
+| TC-06-02 | student 120 min | allowed | FR-06 | `tests/approvals/test_policies.py::test_student_accepts_allowed_duration[120]` |
+| TC-06-03 | student 121 min | `PolicyViolation` / 422 | FR-06 | `tests/approvals/test_policies.py::test_student_rejects_121_minutes` |
+| TC-06-04 | faculty 239 min | allowed | FR-06 | `tests/approvals/test_policies.py::test_faculty_accepts_allowed_duration[239]` |
+| TC-06-05 | faculty 240 min | allowed | FR-06 | `tests/approvals/test_policies.py::test_faculty_accepts_allowed_duration[240]` |
+| TC-06-06 | faculty 241 min | `PolicyViolation` / 422 | FR-06 | `tests/approvals/test_policies.py::test_faculty_rejects_241_minutes` |
+| TC-06-07 | admin 600 min | allowed | FR-06 | `tests/approvals/test_policies.py::test_admin_accepts_ten_hours` |
 
 ## 7. FR-08 Approval state
 
@@ -137,14 +137,13 @@ Existing interval (a CONFIRMED booking or a maintenance block) `[10:00, 12:00)`.
 
 | TC | Input | Expected | Req | Implementing test |
 |---|---|---|---|---|
-| TC-08-01 | approve a PENDING booking, slot free | CONFIRMED, history row, `BookingConfirmed` | FR-08 | planned (M2, Hussnain: `tests/bookings/test_booking_service.py`) |
-| TC-08-02 | approve a CONFIRMED booking | `BookingConflict` / 409 | FR-08 | planned (M2, Hussnain: `tests/bookings/test_booking_service.py`) |
-| TC-08-03 | reject a PENDING booking | REJECTED, history row, `BookingRejected` | FR-08 | planned (M2, Hussnain: `tests/bookings/test_booking_service.py`) |
-| TC-08-04 | approve a PENDING booking that now overlaps a CONFIRMED one | `BookingConflict` / 409 | FR-08, FR-05 | planned (M2, Hussnain: `tests/bookings/test_booking_service.py`) |
+| TC-08-01 | approve a PENDING booking, slot free | CONFIRMED, history row, `BookingConfirmed` | FR-08 | `tests/bookings/test_booking_service.py::test_confirm_pending_confirms_with_history_and_event_after_commit` |
+| TC-08-02 | approve a CONFIRMED booking | `BookingConflict` / 409 | FR-08 | `tests/bookings/test_booking_service.py::test_confirm_a_booking_that_is_not_pending_conflicts` |
+| TC-08-03 | reject a PENDING booking | REJECTED, history row, `BookingRejected` | FR-08 | `tests/bookings/test_booking_service.py::test_reject_pending_rejects_with_history_and_event_after_commit` |
+| TC-08-04 | approve a PENDING booking that now overlaps a CONFIRMED one | `BookingConflict` / 409 | FR-08, FR-05 | `tests/bookings/test_booking_service.py::test_confirm_pending_that_now_overlaps_a_confirmed_booking_conflicts` |
 
 ## 8. Summary
 
-49 test cases: 30 implemented by tests on `develop` at `1ee09df` (TC-01-01..06, TC-02-01..07,
-TC-02-09..12, TC-03-01..08, TC-05-01..05); 17 assigned to the bookings and approvals PRs, due on
-Thursday 19 Nov; 2 planned for M3 (TC-02-08, TC-04-03). The "planned (M2)" entries will be updated
-to the real test names once those PRs are merged.
+49 test cases: 47 implemented by pytest tests (TC-01 to TC-08 except the two below) and 2 planned
+for M3 (TC-02-08 large capacity, TC-04-03 one-minute booking). Tests come from four members'
+modules: users (Danish), facilities (Bilal), bookings (Hussnain) and approvals (Umer).
