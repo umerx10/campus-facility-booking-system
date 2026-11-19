@@ -178,3 +178,10 @@ failures and their consequences.
 
 **Final review required:** Update statuses, residual risks
 and evidence after all M2 module merges and CI checks.
+
+## Final Integration Risk Update — 19 November 2026
+
+- Approval API implementation risk: mitigated by implementing all three FR-08 endpoints and passing local regression tests.
+- Cross-module compatibility: checked with Booking Core integration; 207 tests passed.
+- Remaining risk: pending pull request review, CI validation, and integration into develop.
+- Mitigation: obtain Danish's review and Bilal's merge following successful checks.

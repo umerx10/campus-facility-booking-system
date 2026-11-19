@@ -511,3 +511,15 @@ Associated SE431 documentation includes:
 - `docs/m2/umer-whitebox.md`
 - M1 SE423 design report
 - GitHub PR #12 and feature branch commit history
+
+## Final Contribution and Integration Update — 19 November 2026
+
+Completed FR-06 role-based approval policies and FR-08 approval service/API, including pending booking retrieval, approval, rejection, and administrator authorization.
+
+Used test-first commits followed by implementation commits. Final approval API implementation commit: fb63bee.
+
+Reviewed Hussnain's Booking Core PR #15 and posted an integration review comment.
+
+Final local quality evidence: 207 tests passed (11.91 seconds), 0 failed, 1 warning; Pylint 10.00/10.
+
+Approval Workflow PR submitted for review. Merge into develop remains subject to review and CI.

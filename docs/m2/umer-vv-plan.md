@@ -238,3 +238,12 @@ The remaining milestone activities include:
 **Evidence update required:** Review this plan after the
 team's M2 pull requests merge. Verify all referenced test
 files, actual results and baseline artifacts before submission.
+
+## Final Verification Update — 19 November 2026
+
+- Full integrated test suite: 207 passed, 0 failed, 1 warning (11.91 seconds).
+- Static analysis: Pylint 10.00/10.
+- FR-06 role policies verified through unit tests.
+- FR-08 approval service and API verified through service and HTTP tests.
+- Approval endpoints: GET /approvals/pending, POST /approvals/{booking_id}/approve, POST /approvals/{booking_id}/reject.
+- Earlier test counts in this document represent intermediate milestones; 207 is the final verified local count.

@@ -143,3 +143,14 @@ verified during final integration.
 **Note:** Test IDs TC-01â€“TC-10 are inherited from the M1
 traceability plan. Replace or extend them with Bilal's
 final detailed test-case IDs before submission.
+
+## Final FR-06 / FR-08 Traceability Update — 19 November 2026
+
+| Requirement | Implementation | Verification | Local status |
+|---|---|---|---|
+| FR-06 | app/approvals/policies.py | tests/approvals/test_policies.py | Implemented and tested |
+| FR-08 Service | app/approvals/service.py | tests/approvals/test_approval_service.py | Implemented and tested |
+| FR-08 API | app/approvals/router.py | tests/approvals/test_approval_api.py | Implemented and tested |
+
+Final local regression: 207 passed, 0 failed; Pylint 10.00/10.
+GitHub merge/review completion is tracked separately from local verification.
