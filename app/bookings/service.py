@@ -118,9 +118,7 @@ class BookingService:
 
     def cancel(self, booking_id: int, actor: CurrentUser) -> Booking:
         """Cancel a PENDING or CONFIRMED booking of the actor (an admin may cancel any)."""
-        booking = self._store.get(booking_id)
-        if booking is None or (actor.role != Role.ADMIN and booking.user_id != actor.id):
-            raise NotFound(f"Booking {booking_id} not found")
+        booking = self._get_visible(booking_id, actor)
         if booking.status in CLOSED_STATUSES:
             raise BookingConflict(f"Booking {booking_id} is already {booking.status.value}")
         return self._change_status(booking, BookingStatus.CANCELLED, actor, BookingCancelled)
@@ -143,6 +141,29 @@ class BookingService:
     def list_pending(self) -> list[Booking]:
         """Return the bookings waiting for an administrator's decision."""
         return self._store.list_pending()
+
+    def list_for_user(self, user_id: int) -> list[Booking]:
+        """Return the user's own bookings (FR-09)."""
+        return self._store.list_for_user(user_id)
+
+    def history(self, booking_id: int, actor: CurrentUser) -> list[BookingHistory]:
+        """Return the booking's status changes; only its owner or an administrator may see them."""
+        booking = self._get_visible(booking_id, actor)
+        return self._store.history_for(booking.id)
+
+    def schedule(self, facility_id: int, day: date) -> list[Booking]:
+        """Return the facility's CONFIRMED bookings on that day (FR-03)."""
+        return self._store.confirmed_on(facility_id, day)
+
+    def _get_visible(self, booking_id: int, actor: CurrentUser) -> Booking:
+        """Return the booking if the actor owns it or is an administrator.
+
+        Another user's booking gives the same NotFound as a missing one, so ids are not revealed.
+        """
+        booking = self._store.get(booking_id)
+        if booking is None or (actor.role != Role.ADMIN and booking.user_id != actor.id):
+            raise NotFound(f"Booking {booking_id} not found")
+        return booking
 
     def _get_pending(self, booking_id: int) -> Booking:
         """Return the booking if it is PENDING; NotFound if missing, BookingConflict otherwise."""
