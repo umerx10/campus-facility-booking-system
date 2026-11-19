@@ -97,11 +97,22 @@ analysed in `docs/m2/bilal-whitebox.md`, and `FacilityRepository.update`).
 - FR-03 is served in two halves: `GET /facilities/{id}/schedule` (hours and blocks, mine) and
   `GET /bookings/schedule` (confirmed bookings, Booking module).
 
-## 8. SE423 lead duties (as of 18 Nov 2026, evening)
+## 8. SE423 lead duties
 
 - Merged PR #5 (users-auth) and PR #6 (notifications) with "Create a merge commit". PR #6 was merged
   first and already contained PR #5's commits, so GitHub closed #5 as merged with no merge commit of
   its own; merge commit `57862dc` brings both into `develop`.
-- Integration wiring (`feature/integration-wiring`), the `develop` -> `main` baseline tagged
-  `m2-baseline` and the assembled SE423 report follow once the bookings and approvals PRs are
-  merged (team plan, section 3).
+- Merged PR #12 (approvals policies, Umer) as merge commit `7891576`.
+- Kept CI green: PR #12's `test_each_policy_satisfies_booking_policy` called `isinstance` on
+  `BookingPolicy`, which is not a runtime-checkable Protocol, so it raised `TypeError` and made
+  `develop` red. Fixed in `7edc04a` (branch `fix/approvals-policy-test`) without changing the
+  test's intent; Umer was informed.
+- Integration wiring (branch `feature/integration-wiring`, test-first): `7a1e50b` adds
+  `tests/integration/test_wiring.py`, which runs the real lifespan on a file database, confirms a
+  booking through the API and checks that a `BOOKING_CONFIRMED` notification row exists after
+  shutdown (red: no row). `33854c6` wires it in `app/main.py`: a `ThreadPoolExecutor(max_workers=2,
+  thread_name_prefix="notify")`, `register_notifications(booking_events, session_factory,
+  executor)`, and `executor.shutdown(wait=True)` after `yield` so queued notifications are written
+  before the server stops. 187 passed; the integration test passed 5 of 5 repeated runs.
+- The `develop` -> `main` baseline tagged `m2-baseline` and the assembled SE423 report follow once
+  every M2 PR is merged.
