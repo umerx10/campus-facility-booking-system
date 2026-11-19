@@ -82,7 +82,7 @@ CLOSED_STATUSES = frozenset({BookingStatus.CANCELLED, BookingStatus.REJECTED})
 class BookingService:
     """Creates, cancels and decides bookings; every change is one transaction with its history."""
 
-    def __init__(  # pylint: disable=too-many-arguments  # five injected collaborators, by design (DIP)
+    def __init__(
         self,
         *,
         repository: BookingStore,
