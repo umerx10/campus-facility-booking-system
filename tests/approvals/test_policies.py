@@ -112,8 +112,9 @@ def test_each_policy_satisfies_booking_policy(
     policy_class: type, role: Role
 ) -> None:
     """Every strategy implements the same BookingPolicy contract."""
-    policy = policy_class()
-    assert isinstance(policy, BookingPolicy)
+    # BookingPolicy is a plain (not runtime_checkable) Protocol, so isinstance() raises TypeError.
+    # The annotated assignment is checked by type checkers; the call below checks behaviour.
+    policy: BookingPolicy = policy_class()
     policy.validate(
         user_for(role),
         FACILITY,
